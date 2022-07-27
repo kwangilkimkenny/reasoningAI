@@ -7,10 +7,18 @@
 # 모든 인간 입력 문장에 대한 비교점수를 합산 후 평균을 내면, 결과점수는 바로 논리적인지 아닌지 알 수 있는 수치로 출력된다. 
 
 # 문장 예제 입력(인간 작성 문장)
-input_sent = """You need flour to bake bread. You have a sack of flour in the garage. When you get there, you find on top of it a hat that you thought you had lost months ago. So you """
+#input_sent = """You need flour to bake bread. You have a sack of flour in the garage. When you get there, you find on top of it a hat that you thought you had lost months ago. So you """
+input_sent = """You order a bowl of cold tomato soup in a restaurant. It looks delicious, but they forgot to bring you a spoon. You try to drink it by pouring it into your napkin, but"""
 
-# 다음 문장 입력(인간입력)  - 이 문장을  AI와 비교할 것임, 이 문장은 논리적인 추론 결과로 작성된 문장임. 
-input_sent_next = """So you take the hat and put it on your head. You go back to the kitchen and find that you have forgotten to buy eggs."""
+
+# 다음 문장 입력(인간입력) 논리 - 이 문장을  AI와 비교할 것임, 이 문장은 논리적인 추론 결과로 작성된 문장임. 
+#input_sent_next = """So you take the hat and put it on your head. You go back to the kitchen and find that you have forgotten to buy eggs."""
+
+input_sent_next = """it doesn't work."""
+
+# 다음 문장 입력(인간입력) 비논리 - 이 문장을  AI와 비교할 것임, 이 문장은 비논리적인 추론 결과로 작성된 문장임. 
+#input_sent_next ="""have to dry it out. To do that, you spread it out on a tarp in the sun."""
+# 해석 : Flour that has gotten soaked has to be thrown out; drying it will not help.
 
 # 문장을 sentence token으로 분리하여 리스트에 저장
 import nltk
@@ -25,7 +33,7 @@ import re
 from happytransformer import HappyGeneration
 from happytransformer import GENSettings
 
-happy_gen = HappyGeneration("GPT-NEO", "EleutherAI/gpt-neo-1.3B")
+happy_gen = HappyGeneration("GPT-NEO", "EleutherAI/gpt-neo-2.7B")
 
 def GenText(input_txt):
     # 문장생성시 냉정함 적용 - 즉, 논리적으로 창의적이 아님!
@@ -70,7 +78,7 @@ def listToString(str_list):
 
 # 6개의 샘플 문장 생성
 def GenText_2nd(input_txt):
-    tmp = [0.11, 0.01, 0.15, 0.12, 0.13, 0.16]
+    tmp = [0.001, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9] # 몇개 더 추가함
     resp = []
     resp_ = []
     resp__ = []
@@ -78,7 +86,8 @@ def GenText_2nd(input_txt):
         top_k_sampling_settings = GENSettings(do_sample=True, 
                                                 top_k=200, 
                                                 temperature=temp,  
-                                                max_length=10, # 짧은 문장 생성
+                                                max_length=50, # 짧은 문장 생성
+                                                min_length=50,
                                                 no_repeat_ngram_size=2)
 
         result_top_k_sampling = happy_gen.generate_text(input_txt, args=top_k_sampling_settings)
@@ -159,7 +168,10 @@ print("AI resoning result : ", sim_re[0][0])
 # 6개의 AI로 비교한 문장 유사도 측정결과로 이것이 논리적 분석 값임
 gen_txt_2nd = GenText_2nd(input_sent)
 
-# 6개의 문장 개별 비교
+# 생성된 문장 확인
+print("생성된 문장 확인 :" , gen_txt_2nd)
+
+# 생성된 문장 개별 비교
 sim_re_li = []
 for itm in gen_txt_2nd:
     sent_ = [input_sent_next, itm]
@@ -171,9 +183,21 @@ for itm in gen_txt_2nd:
     )
     sim_re_li.append(sim_re[0][0])
 
+# 비교값 확인
+print("유사문장 비교값 확인: " , sim_re_li)
+
+# 보정을 위해서 최대, 최소값 삭제
+min_value = min(sim_re_li)
+max_value = max(sim_re_li)
+
+sim_re_li.remove(min_value)
+sim_re_li.remove(max_value)
+
+print("최대 최소값 삭제 확인: " , sim_re_li)
+
 # 개별 비교 분석 결과 평균값 산출하기
 import numpy as np
 a = np.array(sim_re_li)
 AVG = np.mean(a)
 
-print(" 6 AI resoning result :", AVG)
+print(" AI resoning result score :", AVG)
