@@ -1,3 +1,7 @@
+#### 두개의 문장사이의 논리적 관계를 판단하는 연구 ####
+
+
+
 # 수학문제 글 입력 (논리적이거나 아니거나)
 # AI 는 사용자가 입력한 문장들을 개별 문장으로 나누고, 각 문장을 입력으로 새로운 문장을 자체 생성한다. 생성한 문장은 논리적인 문장일 것이라는 가설.(테스트 완료)
 # 수학문제 문장들을 개별 문장으로 분해해서 리스트에 담는다. 
@@ -315,6 +319,9 @@ F = random.uniform(0, 0.02)
 
 
 list_tmps = [A,B,C,D,E,F]
+
+
+
 k=0
 result_genText = []
 for i in list_tmps:
@@ -359,5 +366,11 @@ a = np.array(sim_re_li)
 AVG = np.mean(a)
 
 #print(" AI resoning result score :", AVG)
+#print(" AI resoning result score :" , AVG)
 
-print(" AI resoning result score :" , AVG)
+if AVG >= 0.5:
+    result = "Logical"
+else:
+    result = "Illogical"
+
+print("Checking the logicality of a sentence : ", result)
