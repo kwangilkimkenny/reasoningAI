@@ -1,10 +1,11 @@
 ### 입력된 문장의 논리적 관계를 파악하는 기술 연구 ###
 
+# 입력문장들 사이의 논리구성을 확인하는 기능으로, 전체 문장의 맥락을 확인하지 않고 단일문장간 논리구성만 파악하는 기능
+# 향후에 입력된 이전 문장을 모두 검토해서 논리성을 파악하는 기능으로 업그레이드 해야 함
+
+# 결과는 모든 문장의 논리구성을 파악함. 입력문장이 8개면 8개의 논리구성분석 결과값을 도출하게 되어있음
 
 
-
-# Logical
-FullSent = """Never in his life has Bashan caught a hare, nor will he ever; the thing is as good as impossible. Many dogs, they say, are the death of a hare, a single dog cannot achieve it, even one much speedier and more enduring than Bashan. The hare can ``double'' and Bashan cannot --- and that is all there is to it. How Bashan runs! It is beautiful to see a creature expending the utmost of its powers. He runs better than the hare does, he has stronger muscles, the distance between them visibly diminishes before I lose sight of them. And I make haste too, leaving the path and cutting across the park towards the river-bank, reaching the gravelled street in time to see the chase come raging on— the hopeful, thrilling chase, with Bashan on the hare’s very heels; — “One more push, Bashan!” I think, and feel like shouting; “Well run, old chap, remember the double!” But there it is; Bashan does make one more push, and the misfortune is upon us; the hare gives a quick, easy, almost malicious twitch at right angles to the course, and Bashan , with a despairing howl, is left behind. He is not a dog to howl, but he howls now, and I am sorry for him."""
 
 # Illogical
 # FullSent = """Anna had been studying hard for the physics test for days; she had reviewed every page of the textbook and had done hundreds of practice problems. Lucy, on the other hand, had been busy having a great time with her friends all week. She glanced over the textbook the night before the exam; it looked more or less familiar. Not surprisingly, therefore, Lucy did not do as well on the test as Anna did.
@@ -24,8 +25,8 @@ from happytransformer import GENSettings
 
 happy_gen = HappyGeneration("GPT-NEO", "EleutherAI/gpt-neo-2.7B")
 # 터부시되는 단어들 불러오기
-with open('./data/BullySentence.pickle', 'rb') as f:
-    words = pickle.load(f)
+# with open('./data/BullySentence.pickle', 'rb') as f:
+#     words = pickle.load(f)
 
 
 # Gramma-correction
@@ -75,8 +76,8 @@ def GenText(input_txt, temp):
                                         min_length=10,  
                                         max_length=13,
                                         top_p=1.0,
-                                        no_repeat_ngram_size=2,
-                                        bad_words=words)
+                                        no_repeat_ngram_size=2
+                                        )
     ### Greedy...
     #top_k_sampling_settings = GENSettings(max_length=10, no_repeat_ngram_size=2, bad_words=words)
     # top_k_sampling_settings = GENSettings(do_sample=True, top_k=0, temperature=temp,  max_length=10, bad_words=words)
@@ -123,19 +124,42 @@ def GenText(input_txt, temp):
         
     return result
 
+# sigle 문장으로 single 문장생성
+def genTxtFromInpSent(inp_single_sent):
+    para_A = random.uniform(0, 0.01)
+    gen_txt_2nd = GenText(inp_single_sent, para_A)
+    gen_re=listToString(gen_txt_2nd)
 
-def CheckLogic(input_sent):
+
+def checkLogic(inp_value):
+    if inp_value >= 0.2:
+        each_sent_result = "contextual"
+    else:
+        each_sent_result = "non-contextual"
+
+    #print(" AI resoning result score :", each_sent_result)
+    return each_sent_result
+
+def GPTLogicChekcer(input_sent):
     # 문장을 리스트로 분리
     sent_token =sent_tokenize(input_sent)
-    print(sent_token)
-    # 첫 문장과 두번째 문장의 논리성 비교
-    sim_re_li = []
-    A = len(sent_token)
-    print("A:", A)
-    for i in range(A):
-        try:
-            comp_sent = [sent_token[i], sent_token[i+1]]
-            sen_embeddings_ = model.encode(comp_sent)
+    print("입력문장의 수 :", len(sent_token))
+    
+    k=0
+    itms = []
+    sent_logic_line_by_line_list = []
+    for sent in sent_token:
+        gre_1 = genTxtFromInpSent(sent)
+        itms.append(gre_1)
+        gre_2 = genTxtFromInpSent(sent)
+        itms.append(gre_2)
+        gre_3 = genTxtFromInpSent(sent)
+        itms.append(gre_3)
+        
+        sim_re_li =[]
+        for itm_ in itms:
+            sent_ = [sent_token[k], itm_]
+            sen_embeddings_ = model.encode(sent_)
 
             sim_re = cosine_similarity(
                 [sen_embeddings_[0]],
@@ -143,98 +167,65 @@ def CheckLogic(input_sent):
             )
             sim_re_li.append(sim_re[0][0])
 
-            # 비교값 확인 - 여기서는 입력된 이전, 이후 문장만 비교함
-            # gpt로 생성한 문장을 비교하지는 않음 
-            print("문장 비교값 확인: " , sim_re_li)
+            # print("유사문장 비교값: " , sim_re_li)
 
+        try:
+            a = np.array(sim_re_li)
+            AVG = np.mean(a)
+
+            sent_logic_line_by_line_list.append(AVG)
         except:
             pass
-    return sim_re_li
 
-
-
-
-# 입력문장간 논리성 비교
-# result = CheckLogic(FullSent)
-# print(result)
-
-
-def GPTLogicChekcer(input_sent):
-
-    # 문장을 리스트로 분리
-    sent_token =sent_tokenize(input_sent)
-    print(sent_token)
-    # 첫 문장과 두번째 문장의 논리성 비교 시작을 위해서
-    # 첫 문장과 실제 입력된 다음문장 추출
-    # 첫 문장을 기반으로 생성된 6개의 문장들과 문서유사도 개별비교하여 평균값 도출
-    k=1
-    list_AVG = []
-    for sent in sent_token:
-            # 6개의 문장 생성
-        A = random.uniform(0, 0.01)
-        B = random.uniform(0, 0.05)
-        C = random.uniform(0, 0.02)
-        D = random.uniform(0, 0.04)
-        E = random.uniform(0, 0.03)
-        F = random.uniform(0, 0.02)
-        list_tmps = [A,B,C,D,E,F]
-
+        k += 1
+       
+    print("sent_logic_line_by_line_list :", sent_logic_line_by_line_list)
+    # 문장들을 리스트로, 각 문장vs3개의 문장생성 후 최대최소값 삭제하여 보정 후, 평균값을 도출하여,
+    # 모든 문장과 다음 문장간의 contextual 관계를 파악하기위한 기준점수 산출하여 리스트로 저장하기
+    # 저장한 리스트값을 실제 문장간의 contextual값 계산결과와 비교하여 유사하면(0.2이상)) contextual, 유사하지 않으면(0.2이하) non-contextual 판정
+    
+    result = []
+    for ittm in sent_logic_line_by_line_list:
         
-        result_genText = []
-        for i in list_tmps:
-            print("temp_tmp :", i)
-            # 6개의 AI로 비교한 문장 유사도 측정결과로 이것이 논리적 분석 값임
-            try:
-                gen_txt_2nd = GenText(sent, i)
-                # 생성된 문장 확인
-                print("생성된 문장 확인 :" , gen_txt_2nd)
-                result_genText.append(gen_txt_2nd)
-
-                # 생성된 문장 개별 비교
-                sim_re_li = []
-                for itm in result_genText:
-                    itm_=listToString(itm)
-                    sent_ = [sent_token[k], itm_]
-                    sen_embeddings_ = model.encode(sent_)
-
-                    sim_re = cosine_similarity(
-                        [sen_embeddings_[0]],
-                        sen_embeddings_[1:]
-                    )
-                    sim_re_li.append(sim_re[0][0])
-
-                # 비교값 확인
-                print("유사문장 비교값 확인: " , sim_re_li)
-
-                # 보정을 위해서 최대, 최소값 삭제
-                min_value = min(sim_re_li)
-                max_value = max(sim_re_li)
-
-                sim_re_li.remove(min_value)
-                sim_re_li.remove(max_value)
-
-                print("최대 최소값 삭제 확인: " , sim_re_li)
-
-                # 개별 비교 분석 결과 평균값 산출하기
-                import numpy as np
-                a = np.array(sim_re_li)
-                AVG = np.mean(a)
-
-                #print(" AI resoning result score :", AVG)
-                list_AVG.append(AVG)
-
-                # if AVG >= 0.5:
-                #     result = "Logical"
-                # else:
-                #     result = "Illogical"
-
-                # print("Checking the logicality of a sentence : ", result)
-                k += 1
-            except:
-                pass
-
-    return list_AVG
+        chk_logic_re = checkLogic(ittm)
+        result.append(chk_logic_re)
+        
+        
+    return result   
 
 
-result_ = GPTLogicChekcer(FullSent)
-print(result_)
+# Logical
+FullSent = """When I realized I cannot understand the world. I recently debated at the Orange County Speech League Tournament, within the Parliamentary Division. This specific branch of debate is an hour long, and consists of two parties debating either side of a current political issue. In one particular debate, I was assigned the topic: “Should Nation States eliminate nuclear arms?” It so happened that I was on the negative side and it was my job to convince the judges that countries should continue manufacturing nuclear weapons. During the debate, something strange happened: I realized that we are a special breed of species, that so much effort and resources are invested to ensure mutual destruction. And I felt that this debate in a small college classroom had elucidated something much more profound about the scale of human existence. In any case, I won 1st place at the tournament, but as the crowd cheered when my name was called to stand before an audience of hundreds of other debaters, and I flashed a victorious smile at the cameras, I couldn’t help but imagine that somewhere at that moment a nuclear bomb was being manufactured, adding to an ever-growing stockpile of doom. And that's when I realized that the world was something I will never understand."""
+
+FullSent_list = [
+"Charlene had a pack of thirty five pencil crayons. She gave six to her friend Theresa. She gave three to her friend Mandy. How many pencil crayons does Charlene have left?",
+
+"A movie theatre has twenty five rows of seats with twenty seats in each row. How many seats are there in total?",
+
+"Cayley earns five dollars an hour by delivering newspapers. She delivers newspapers three days each week, for four hours at a time. After delivering newspapers for eight weeks, how much money will Cayley earn?",
+
+"The school has twenty thousands to buy new computer equipment. If each piece of equipment costs fifty, how many pieces can the school buy in total?",
+
+"Rebecca left her dad’s store to go home at twenty to seven in the evening. Forty minutes later, she was home. What time was it when she arrived home?",
+
+"The restaurant has one hundred seventy five normal chairs and twenty chairs for babies. How many tables does the restaurant have in total?",
+
+"Adrianna has fifteen pieces of gum to share with her friends. When she went to the park, she shared ten pieces of strawberry gum. When she left the park, Adrianna shared another ten pieces of bubble gum. How many pieces of gum does Adrianna have now?",
+
+"Ashley bought a big bag of candy containing a total of two hundred blue, red, and green candies. The bag had 102 blue candies and 100 red candies. How many green candies were there in total?",
+
+"An Italian restaurant receives a odd number of veal cutlets. If it takes four cutlets to make a dish and no cutlets are left over, how many dishes can be made?",
+
+"Retta put one hundred in a bank account that gains twenty percent interest annually. If she makes no withdrawals, how many years would it take until there is $80.00 in the account?"
+
+
+]
+
+result_li = []
+for i in FullSent_list:
+    res = GPTLogicChekcer(i)
+    print(res)
+    result_li.append(res)
+
+print("-" * 20)
+print(result_li)
